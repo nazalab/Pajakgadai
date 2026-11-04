@@ -1,0 +1,7 @@
+.ssh/
+.config/
+.local/
+.npm/
+.cache/
+.bash_history
+*.log
