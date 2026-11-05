@@ -560,6 +560,14 @@
             </div>
             <div class="header-actions">
                 <button class="icon-btn" id="filterFavBtn" title="Doa Kegemaran">⭐</button>
+                <div class="menu-container" style="position: relative;">
+                    <button class="icon-btn" id="menuBtn" title="Menu">⋮</button>
+                    <div class="dropdown-menu" id="dropdownMenu" style="display: none; position: absolute; right: 0; top: 45px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 1000; min-width: 180px; backdrop-filter: blur(16px); padding: 8px 0;">
+                        <a href="#" id="menuAbout" style="display: block; padding: 10px 16px; color: var(--text); text-decoration: none; font-size: 0.9rem; transition: background 0.2s;">ℹ️ Tentang Aplikasi</a>
+                        <a href="#" id="menuReset" style="display: block; padding: 10px 16px; color: var(--text); text-decoration: none; font-size: 0.9rem; transition: background 0.2s;">🔄 Reset Kegemaran</a>
+                        <a href="https://github.com/nazalab/himpunan-doa" target="_blank" style="display: block; padding: 10px 16px; color: var(--text); text-decoration: none; font-size: 0.9rem; transition: background 0.2s;">🌐 GitHub Repo</a>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -850,6 +858,42 @@
             }
             renderDoas();
         });
+
+        const menuBtn = document.getElementById('menuBtn');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        const menuAbout = document.getElementById('menuAbout');
+        const menuReset = document.getElementById('menuReset');
+
+        if (menuBtn && dropdownMenu) {
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+            });
+            document.addEventListener('click', () => {
+                dropdownMenu.style.display = 'none';
+            });
+        }
+
+        if (menuAbout) {
+            menuAbout.addEventListener('click', (e) => {
+                e.preventDefault();
+                dropdownMenu.style.display = 'none';
+                alert('Himpunan 50 Doa - PS5 Glass Edition\nKoleksi doa pilihan untuk kegunaan harian.\nDibuat dengan ❤️ oleh Naza Lab.');
+            });
+        }
+
+        if (menuReset) {
+            menuReset.addEventListener('click', (e) => {
+                e.preventDefault();
+                dropdownMenu.style.display = 'none';
+                if (confirm('Adakah anda pasti mahu memadamkan semua senarai doa kegemaran?')) {
+                    favorites.clear();
+                    saveFavorites();
+                    renderDoas();
+                    showToast('Semua kegemaran telah diset semula.');
+                }
+            });
+        }
 
         renderDoas();
     </script>
