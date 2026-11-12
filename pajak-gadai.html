@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sistem Pengurusan Pajak Gadai — Gradient Brown & Cream Glass</title>
+    <!-- Poppins Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome 6 (Local) -->
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <!-- External Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Vue 3 (Local) -->
+    <script src="vendor/vue.global.prod.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header" style="padding: 10px 16px;">
+            <div class="header-title" style="font-size: 1.05rem;">
+                <i class="fa-solid fa-vault"></i> Sistem Pengurusan Pajak Gadai
+            </div>
+        </header>
+
+        <!-- Main Content Container -->
+        <main class="container">
+            <!-- Export & Import Buttons Bar -->
+            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+                <button class="btn-secondary" style="flex: 1; padding: 8px 12px; font-size: 0.8rem;" @click="exportData"><i class="fa-solid fa-download"></i> Eksport Data</button>
+                <button class="btn-secondary" style="flex: 1; padding: 8px 12px; font-size: 0.8rem;" @click="triggerImport"><i class="fa-solid fa-upload"></i> Import Data</button>
+            </div>
+
+            <!-- TAB 1: DASHBOARD -->
+            <section v-if="currentTab === 'dashboard'" class="view-section">
+                <!-- Search & Filter -->
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" class="search-input" v-model="searchQuery" placeholder="Cari No. Bil, Kedai, atau Nama Barang...">
+                </div>
+
+                <!-- Filter Pills -->
+                <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
+                    <button class="badge" :style="filterStatus === 'all' ? 'background:var(--gold-gradient);color:#fff;border:none;' : 'background:rgba(255,255,255,0.7);color:var(--text-muted);'" @click="filterStatus = 'all'">Semua ({{ bills.length }})</button>
+                    <button class="badge" :style="filterStatus === 'active' ? 'background:var(--gold-gradient);color:#fff;border:none;' : 'background:rgba(255,255,255,0.7);color:var(--text-muted);'" @click="filterStatus = 'active'">Aktif</button>
+                    <button class="badge" :style="filterStatus === 'overdue' ? 'background:var(--gold-gradient);color:#fff;border:none;' : 'background:rgba(255,255,255,0.7);color:var(--text-muted);'" @click="filterStatus = 'overdue'">Overdue</button>
+                </div>
+
+                <!-- Empty State -->
+                <div v-if="filteredBills.length === 0" style="text-align: center; padding: 50px 20px; color: var(--text-muted);">
+                    <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 12px; color: var(--gold-primary);"></i>
+                    <p>Tiada bil pajak dijumpai.</p>
+                    <p style="font-size: 0.8rem; margin-top: 8px;">Sila daftar bil baharu melalui <strong style="color:var(--gold-dark)">Admin Panel</strong>.</p>
+                </div>
+
+                <!-- Dashboard Cards -->
+                <div v-for="bill in filteredBills" :key="bill.id" class="glass-card" @click="openDetailModal(bill)" title="Tekan untuk lihat semua data">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <span style="font-size: 0.85rem; color: var(--gold-dark); font-weight: 700;"><i class="fa-solid fa-store"></i> {{ bill.shopName }}</span>
+                            <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin-top: 2px;">No. Resit: {{ bill.billNo }}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;"><i class="fa-solid fa-calendar-days"></i> Tarikh Mula: {{ formatDate(bill.startDate) }}</div>
+                        </div>
+                        <span class="badge" :class="getBillStatusClass(bill)">
+                            <i :class="getBillStatusIcon(bill)"></i> {{ getBillStatusText(bill) }}
+                        </span>
+                    </div>
+
+                    <!-- Flip Clock Countdown -->
+                    <div style="text-align: center;">
+                        <div class="flip-clock-container">
+                            <div class="flip-unit">
+                                <div class="flip-box" :class="{ 'overdue-flip': getCountdown(bill.dueDate).isOverdue }">{{ getCountdown(bill.dueDate).days }}</div>
+                                <div class="flip-label">{{ getCountdown(bill.dueDate).isOverdue ? 'Hari Lalu' : 'Hari' }}</div>
+                            </div>
+                            <div class="flip-separator" :style="getCountdown(bill.dueDate).isOverdue ? 'color:#dc2626;' : ''">:</div>
+                            <div class="flip-unit">
+                                <div class="flip-box" :class="{ 'overdue-flip': getCountdown(bill.dueDate).isOverdue }">{{ getCountdown(bill.dueDate).hours }}</div>
+                                <div class="flip-label">Jam</div>
+                            </div>
+                            <div class="flip-separator" :style="getCountdown(bill.dueDate).isOverdue ? 'color:#dc2626;' : ''">:</div>
+                            <div class="flip-unit">
+                                <div class="flip-box" :class="{ 'overdue-flip': getCountdown(bill.dueDate).isOverdue }">{{ getCountdown(bill.dueDate).mins }}</div>
+                                <div class="flip-label">Minit</div>
+                            </div>
+                            <div class="flip-separator" :style="getCountdown(bill.dueDate).isOverdue ? 'color:#dc2626;' : ''">:</div>
+                            <div class="flip-unit">
+                                <div class="flip-box" :class="{ 'overdue-flip': getCountdown(bill.dueDate).isOverdue }">{{ getCountdown(bill.dueDate).secs }}</div>
+                                <div class="flip-label">Saat</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: KEDAI -->
+            <section v-if="currentTab === 'shops'" class="view-section">
+                <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 16px; color: var(--gold-dark);"><i class="fa-solid fa-store"></i> Pecahan Mengikut Kedai</h2>
+
+                <div v-if="Object.keys(shopsGroup).length === 0" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    Tiada kedai direkodkan lagi.
+                </div>
+
+                <div v-for="(shopBills, shopName) in shopsGroup" :key="shopName" class="glass-card" style="background: var(--gold-gradient); color: #fff;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.25); padding-bottom: 8px;">
+                        <h3 style="font-size: 1.1rem; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3);"><i class="fa-solid fa-building-columns"></i> {{ shopName }}</h3>
+                        <span class="badge" style="background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.4);">{{ shopBills.length }} Bil</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 0.85rem; margin-bottom: 10px; color: rgba(255,255,255,0.95);">
+                        <div>Jumlah Pinjaman: <strong style="color: #fff;">RM {{ formatMoney(shopBills.reduce((a,b)=>a+Number(b.loanAmount),0)) }}</strong></div>
+                        <div>Upah Bulan Ini: <strong style="color: #fff;">RM {{ formatMoney(getShopCurrentMonthUpah(shopBills)) }}</strong></div>
+                    </div>
+                    <div v-for="b in shopBills" :key="b.id" style="font-size: 0.8rem; background: rgba(255, 252, 247, 0.9); color: var(--text-main); padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.4);">
+                        <div>
+                            <strong style="font-weight: 600; color: var(--text-main);">No. Resit: {{ b.billNo }}</strong> — {{ b.itemName }}
+                            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;"><i class="fa-solid fa-calendar-xmark"></i> Tamat: {{ formatDate(b.dueDate) }}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-weight: 600; color: var(--gold-dark);">Bayaran Upah : RM {{ formatMoney(b.interestAmount) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: ANALISIS -->
+            <section v-if="currentTab === 'analytics'" class="view-section">
+                <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 16px; color: var(--gold-dark);"><i class="fa-solid fa-chart-pie"></i> Analisis & Grafik Pinjaman</h2>
+
+                <!-- Current Month Payment Card (Green Gradient) -->
+                <div class="glass-card" style="background: linear-gradient(135deg, #10b981 0%, #047857 100%); color: #fff; margin-bottom: 12px;">
+                    <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 4px;"><i class="fa-solid fa-calendar-check"></i> Bayaran Bulan Ini : {{ currentMonthName }}</div>
+                    <div style="font-size: 1.6rem; font-weight: 700;">RM {{ formatMoney(currentMonthUpah) }}</div>
+                </div>
+
+                <!-- Next Month Payment Card -->
+                <div class="glass-card" style="background: var(--gold-gradient); color: #fff; margin-bottom: 16px;">
+                    <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 4px;"><i class="fa-solid fa-calendar-alt"></i> Bayaran Bulan Hadapan : {{ nextMonthName }}</div>
+                    <div style="font-size: 1.6rem; font-weight: 700;">RM {{ formatMoney(nextMonthUpah) }}</div>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-title">Jumlah Pinjaman Pokok</div>
+                        <div class="kpi-value">RM {{ formatMoney(totalLoanAmount) }}</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-title">Jumlah Berat Emas</div>
+                        <div class="kpi-value">{{ totalGoldWeight.toFixed(2) }} g</div>
+                    </div>
+                </div>
+
+                <!-- Bayaran Upah Table (Jan - Dec) with Year -->
+                <div class="glass-card">
+                    <h3 style="font-size: 1rem; color: var(--gold-dark); margin-bottom: 14px;"><i class="fa-solid fa-table-cells"></i> Jadual Bayaran Upah (Jan - Dis {{ currentYear }})</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <div v-for="m in monthlyUpahTable" :key="m.short" :style="m.monthIndex === new Date().getMonth() ? 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(4, 120, 87, 0.2)); border: 2px solid #10b981; border-radius: 10px; padding: 10px; text-align: center; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);' : 'background: rgba(255,255,255,0.7); border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px; text-align: center;'">
+                            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;" :style="m.monthIndex === new Date().getMonth() ? 'color: #047857;' : 'color: var(--gold-dark);'">{{ m.name }}</div>
+                            <div style="font-size: 0.85rem; font-weight: 600; margin-top: 4px;" :style="m.monthIndex === new Date().getMonth() ? 'color: #065f46;' : 'color: var(--text-main);'">RM {{ formatMoney(m.total) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bayaran Upah Table (Jan - Dec) for Next Year -->
+                <div class="glass-card">
+                    <h3 style="font-size: 1rem; color: var(--gold-dark); margin-bottom: 14px;"><i class="fa-solid fa-table-cells"></i> Jadual Bayaran Upah (Jan - Dis {{ nextYear }})</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <div v-for="m in nextYearMonthlyUpahTable" :key="m.short" style="background: rgba(255,255,255,0.7); border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px; text-align: center;">
+                            <div style="font-size: 0.75rem; color: var(--gold-dark); font-weight: 700; text-transform: uppercase;">{{ m.name }}</div>
+                            <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin-top: 4px;">RM {{ formatMoney(m.total) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Circle Chart & Bar Chart Analytics -->
+                <div class="glass-card">
+                    <h3 style="font-size: 1rem; color: var(--gold-dark); margin-bottom: 14px;"><i class="fa-solid fa-chart-pie"></i> Carta Peratusan Pinjaman (Circle Chart)</h3>
+
+                    <div v-if="Object.keys(shopsGroup).length === 0" style="text-align: center; color: var(--text-muted); padding: 20px;">
+                        Tiada data untuk dipaparkan pada carta.
+                    </div>
+
+                    <div v-else style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                        <!-- SVG Donut Chart -->
+                        <div style="position: relative; width: 150px; height: 150px;">
+                            <svg width="150" height="150" viewBox="0 0 42 42" style="transform: rotate(-90deg);">
+                                <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="rgba(139,90,43,0.15)" stroke-width="6"></circle>
+                                <circle v-for="slice in shopChartSlices" :key="slice.shopName"
+                                    cx="21" cy="21" r="15.91549430918954"
+                                    fill="transparent"
+                                    :stroke="slice.color"
+                                    stroke-width="6"
+                                    :stroke-dasharray="slice.strokeDasharray"
+                                    :stroke-dashoffset="slice.strokeDashoffset">
+                                </circle>
+                            </svg>
+                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--gold-dark);">
+                                <div>{{ Object.keys(shopsGroup).length }}</div>
+                                <div style="font-size: 0.6rem; color: var(--text-muted);">Kedai</div>
+                            </div>
+                        </div>
+
+                        <!-- Legend with Percentage & Matching Color Indicator -->
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; width: 100%;">
+                            <div v-for="slice in shopChartSlices" :key="slice.shopName" style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; background: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(139,90,43,0.15);">
+                                <span :style="{ width: '12px', height: '12px', borderRadius: '50%', background: slice.color, display: 'inline-block', flexShrink: '0' }"></span>
+                                <span style="font-weight: 600; color: var(--text-main);">{{ slice.shopName }}:</span>
+                                <span style="color: var(--gold-dark); font-weight: 600;">RM {{ formatMoney(slice.amount) }} ({{ slice.percent.toFixed(1) }}%)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytic Bar Chart -->
+                <div class="glass-card">
+                    <h3 style="font-size: 1rem; color: var(--gold-dark); margin-bottom: 14px;"><i class="fa-solid fa-chart-bar"></i> Taburan Pinjaman Mengikut Kedai (Bar Chart)</h3>
+
+                    <div v-if="Object.keys(shopsGroup).length === 0" style="text-align: center; color: var(--text-muted); padding: 20px;">
+                        Tiada data untuk dipaparkan.
+                    </div>
+
+                    <div v-else style="display: flex; flex-direction: column; gap: 12px;">
+                        <div v-for="(shopBills, shopName) in shopsGroup" :key="shopName">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                                <span style="color: var(--text-main); font-weight: 600;">{{ shopName }}</span>
+                                <span style="color: var(--gold-dark);">RM {{ formatMoney(shopBills.reduce((a,b)=>a+Number(b.loanAmount),0)) }} ({{ ((shopBills.reduce((a,b)=>a+Number(b.loanAmount),0) / (totalLoanAmount || 1)) * 100).toFixed(1) }}%)</span>
+                            </div>
+                            <div style="background: rgba(139,90,43,0.1); border-radius: 6px; height: 12px; overflow: hidden; border: 1px solid var(--glass-border);">
+                                <div :style="{ width: ((shopBills.reduce((a,b)=>a+Number(b.loanAmount),0) / (totalLoanAmount || 1)) * 100) + '%', background: 'var(--gold-gradient)', height: '100%', borderRadius: '4px' }"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: ADMIN PANEL -->
+            <section v-if="currentTab === 'admin'" class="view-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="font-size: 1.2rem; font-weight: 700; color: var(--gold-dark);"><i class="fa-solid fa-sliders"></i> Admin Panel</h2>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.8rem;" @click="currentTab = 'log'"><i class="fa-solid fa-history"></i> Buka Log</button>
+                        <button class="btn-gold" style="padding: 8px 14px; font-size: 0.8rem;" @click="openAddModal"><i class="fa-solid fa-plus"></i> Tambah Bil</button>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <h3 style="font-size: 1rem; color: var(--gold-dark); margin-bottom: 12px;"><i class="fa-solid fa-list-check"></i> Senarai Semua Resit</h3>
+
+                    <div v-if="bills.length === 0" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                        Tiada resit didaftarkan dalam sistem.
+                    </div>
+
+                    <div v-for="b in sortedBills" :key="b.id" style="background: rgba(255,255,255,0.7); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-main);">No. Resit: {{ b.billNo }}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Nama Kedai: {{ b.shopName }} | Upah: RM {{ formatMoney(b.interestAmount) }} | Pinjaman: RM {{ formatMoney(b.loanAmount) }}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn-secondary" style="padding: 6px 10px; font-size: 0.75rem;" @click="editBill(b)"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                            <button class="btn-secondary" style="padding: 6px 10px; font-size: 0.75rem; background: rgba(220, 38, 38, 0.15); color: #b91c1c; border-color: rgba(220, 38, 38, 0.3);" @click="deleteBill(b.id)"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: LOG PAGE -->
+            <section v-if="currentTab === 'log'" class="view-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="font-size: 1.2rem; font-weight: 700; color: var(--gold-dark);"><i class="fa-solid fa-clipboard-list"></i> Halaman Log Aktiviti</h2>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.8rem;" @click="clearLogs">Kosongkan Log</button>
+                        <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.8rem;" @click="currentTab = 'admin'"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div v-if="logs.length === 0" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                        Tiada log aktiviti direkodkan.
+                    </div>
+
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <div v-for="log in logs" :key="log.id" class="log-item">
+                            <div style="display: flex; justify-content: space-between;">
+                                <strong>[{{ log.action }}]</strong>
+                                <span class="log-time">{{ formatDateFull(log.timestamp) }}</span>
+                            </div>
+                            <div style="color: var(--text-main); margin-top: 2px;">{{ log.details }}</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footnote -->
+            <footer class="app-footer">
+                Pajak Gadai&copy;2026.Ver1.01
+            </footer>
+
+        </main>
+
+        <!-- Static Floating Bottom Navigation Bar -->
+        <nav class="bottom-nav">
+            <button class="nav-item" :class="{ active: currentTab === 'dashboard' }" @click="currentTab = 'dashboard'">
+                <i class="fa-solid fa-house"></i>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-item" :class="{ active: currentTab === 'shops' }" @click="currentTab = 'shops'">
+                <i class="fa-solid fa-store"></i>
+                <span>Kedai</span>
+            </button>
+
+            <!-- Center Plus Button -->
+            <div class="nav-center-btn" @click="openAddModal" title="Tambah Bil Baru">
+                <i class="fa-solid fa-plus"></i>
+            </div>
+
+            <button class="nav-item" :class="{ active: currentTab === 'analytics' }" @click="currentTab = 'analytics'">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Analisis</span>
+            </button>
+            <button class="nav-item" :class="{ active: currentTab === 'admin' }" @click="currentTab = 'admin'">
+                <i class="fa-solid fa-sliders"></i>
+                <span>Admin</span>
+            </button>
+        </nav>
+
+        <!-- POPUP INTERACTIVE DETAIL MODAL -->
+        <div v-if="detailModalBill" class="modal-overlay" @click="detailModalBill = null">
+            <div class="modal-content" @click.stop>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+                    <div>
+                        <span style="font-size: 0.75rem; color: var(--gold-dark); font-weight: 600;"><i class="fa-solid fa-store"></i> {{ detailModalBill.shopName }}</span>
+                        <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-main);">No. Resit: {{ detailModalBill.billNo }} — {{ detailModalBill.itemName }}</h3>
+                    </div>
+                    <button class="icon-btn" style="width: 32px; height: 32px;" @click="detailModalBill = null"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; font-size: 0.85rem; background: rgba(255,255,255,0.6); padding: 12px; border-radius: 12px; border: 1px solid rgba(139,90,43,0.15);">
+                    <div><span style="color:var(--text-muted)">Berat:</span> <strong>{{ detailModalBill.weightGram }} g</strong></div>
+                    <div><span style="color:var(--text-muted)">Pinjaman:</span> <strong>RM {{ formatMoney(detailModalBill.loanAmount) }}</strong></div>
+                    <div><span style="color:var(--text-muted)">Faedah/Bulan:</span> <strong>RM {{ formatMoney(detailModalBill.interestAmount) }} ({{ detailModalBill.monthlyInterestRate }}%)</strong></div>
+                    <div><span style="color:var(--text-muted)">Tarikh Mula:</span> <strong>{{ formatDate(detailModalBill.startDate) }}</strong></div>
+                    <div style="grid-column: span 2;"><span style="color:var(--text-muted)">Tarikh Luput:</span> <strong>{{ formatDate(detailModalBill.dueDate) }}</strong></div>
+                </div>
+
+                <div v-if="detailModalBill.notes" style="font-size: 0.82rem; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; margin-bottom: 14px; color: var(--text-muted); border: 1px solid rgba(139,90,43,0.1);">
+                    <strong>Nota:</strong> {{ detailModalBill.notes }}
+                </div>
+
+                <!-- Gambar Barang Emas & Resit Link in Popup -->
+                <div style="display: flex; gap: 16px; margin-bottom: 16px; align-items: center; justify-content: space-around; background: rgba(255,255,255,0.5); padding: 12px; border-radius: 12px; border: 1px solid rgba(139,90,43,0.1);">
+                    <div v-if="detailModalBill.itemImage" style="text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--gold-dark); font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-gem"></i> Gambar Emas</div>
+                        <img :src="detailModalBill.itemImage" style="width: 70px; height: 70px; border-radius: 10px; object-fit: cover; border: 1px solid var(--glass-border); cursor: pointer;" @click="viewImage(detailModalBill.itemImage, 'Rujukan Gambar Emas — ' + detailModalBill.billNo)">
+                    </div>
+                    <div v-else style="text-align: center; color: var(--text-muted); font-size: 0.75rem;">
+                        <i class="fa-solid fa-gem" style="font-size: 1.5rem; opacity: 0.3;"></i>
+                        <div>Tiada Gambar Emas</div>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--gold-dark); font-weight: 600; margin-bottom: 4px;"><i class="fa-solid fa-receipt"></i> Resit Pajak</div>
+                        <div v-if="detailModalBill.receiptImage">
+                            <a href="#" @click.prevent="viewImage(detailModalBill.receiptImage, 'Rujukan Resit Pajak — ' + detailModalBill.billNo)" style="color: var(--gold-dark); font-weight: 600; font-size: 0.85rem; text-decoration: underline;">
+                                Lihat Resit
+                            </a>
+                        </div>
+                        <div v-else style="color: var(--text-muted); font-size: 0.75rem;">Tiada Resit</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-gold" style="flex: 1;" @click="renewBill(detailModalBill)"><i class="fa-solid fa-arrows-rotate"></i> Auto Renew (+6B)</button>
+                    <button class="btn-secondary" style="flex: 1;" @click="detailModalBill = null">Tutup</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL TAMBAH / EDIT BIL -->
+        <div v-if="showModal" class="modal-overlay">
+            <div class="modal-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="font-size: 1.2rem; color: var(--gold-dark);">{{ isEditing ? 'Kemaskini Bil Pajak' : 'Tambah Bil Pajak Baru' }}</h3>
+                    <button class="icon-btn" style="width: 32px; height: 32px;" @click="closeModal"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <form @submit.prevent="saveBill">
+                    <div class="form-group">
+                        <label class="form-label">No. Bil / No. Resit</label>
+                        <input type="text" class="form-input" v-model="form.billNo" required placeholder="Cth: AR-98234">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Nama Kedai</label>
+                        <input type="text" class="form-input" list="shop-suggestions" v-model="form.shopName" required placeholder="Pilih atau taip nama kedai...">
+                        <datalist id="shop-suggestions">
+                            <option v-for="shop in customShops" :value="shop"></option>
+                        </datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Jenis Barang Kemas</label>
+                        <input type="text" class="form-input" list="item-suggestions" v-model="form.itemName" required placeholder="Pilih atau taip jenis barang...">
+                        <datalist id="item-suggestions">
+                            <option v-for="item in customItemTypes" :value="item"></option>
+                        </datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Berat (Gram)</label>
+                        <input type="number" step="0.01" class="form-input" v-model.number="form.weightGram" required placeholder="0.00">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label class="form-label">Jumlah Pinjaman (RM)</label>
+                            <input type="number" step="0.01" class="form-input" v-model.number="form.loanAmount" @input="onLoanAmountChange" required placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Faedah / Bulan (RM)</label>
+                            <input type="number" step="0.01" class="form-input" v-model.number="form.monthlyInterestAmount" @input="onAmountChange" required placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <!-- Read-only Interest Rate reference view -->
+                    <div class="form-group" style="background: rgba(139,90,43,0.08); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+                        <span class="form-label" style="margin-bottom:0;">Kadar Faedah (Rujukan):</span>
+                        <strong style="color: var(--gold-dark); font-size: 1.05rem;">{{ form.monthlyInterestRate }}% / bulan</strong>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Tarikh Mula / Pajak</label>
+                        <input type="date" class="form-input" v-model="form.startDate" required>
+                    </div>
+
+                    <!-- Image Uploads -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                        <div>
+                            <label class="form-label">Gambar Barang Emas</label>
+                            <input type="file" accept="image/*" @change="handleImageUpload($event, 'itemImage')" style="font-size: 0.75rem; color: var(--text-muted);">
+                            <img v-if="form.itemImage" :src="form.itemImage" style="width: 55px; height: 55px; border-radius: 8px; margin-top: 6px; object-fit: cover; border: 1px solid var(--glass-border);">
+                        </div>
+                        <div>
+                            <label class="form-label">Gambar Resit Pajak</label>
+                            <input type="file" accept="image/*" @change="handleImageUpload($event, 'receiptImage')" style="font-size: 0.75rem; color: var(--text-muted);">
+                            <img v-if="form.receiptImage" :src="form.receiptImage" style="width: 55px; height: 55px; border-radius: 8px; margin-top: 6px; object-fit: cover; border: 1px solid var(--glass-border);">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Nota Tambahan</label>
+                        <textarea class="form-textarea" rows="2" v-model="form.notes" placeholder="Catatan tambahan..."></textarea>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="button" class="btn-secondary" style="flex:1;" @click="closeModal">Batal</button>
+                        <button type="submit" class="btn-gold" style="flex:1;"><i class="fa-solid fa-save"></i> Simpan Bil</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- LIGHTBOX IMAGE VIEWER -->
+        <div v-if="viewerImage" class="modal-overlay" @click="viewerImage = null">
+            <div class="modal-content" style="text-align: center; max-width: 450px;" @click.stop>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h4 style="color: var(--gold-dark); font-size: 1rem;"><i class="fa-solid fa-image"></i> {{ viewerTitle }}</h4>
+                    <button class="icon-btn" style="width: 32px; height: 32px;" @click="viewerImage = null"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div style="background: rgba(255,255,255,0.7); padding: 10px; border-radius: 14px; border: 1px solid var(--glass-border);">
+                    <img :src="viewerImage" style="width: 100%; border-radius: 10px; max-height: 65vh; object-fit: contain;">
+                </div>
+                <button class="btn-secondary" style="margin-top: 16px; width: 100%;" @click="viewerImage = null">Tutup Paparan</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- External Logic Script -->
+    <script src="app.js"></script>
+</body>
+</html>
